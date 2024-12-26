@@ -11,13 +11,13 @@
 using namespace std;
 using namespace sf;
 
-// Asset Paths
-const string fontPath = "assets/fonts/arial.ttf";
+// Assets Paths
+const string fontPath = "assets/fonts/russo-one.ttf";
 const string collisionSoundPath = "assets/sounds/collision.wav";
 const string backgroundMusicPath = "assets/sounds/background.ogg";
 const string carShapePath = "assets/car.png";
 const string backgroundTrack = "assets/background/background.png";
-const string menuTitleImage = "assets/background/image.jpg";
+const string menuTitleImage = "assets/background/image.png";
 const string pauseTitleImage = "assets/background/image1.jpg";
 const string carImage1 = "assets/cars/image1.png";
 const string carImage2 = "assets/cars/image2.png";
@@ -28,12 +28,292 @@ const string carImage6 = "assets/cars/image6.png";
 const string clickSound = "assets/sounds/click.wav";
 const string save_load = "config/setting.txt";
 const string countDownSoundPath = "assets/sounds/countdown.wav";
-// Constants for track dimensions
+const string fuelPowerUpPath = "assets/power ups/fuel.png";
+const string scorePowerUpPath = "assets/power ups/score.png";
+const string livesPowerUpPath = "assets/power ups/lives.png";
+const string bgMapTrack1 = "assets/maps/Desert_road.png";
+const string bgMapTrack2 = "assets/maps/Highway_road.png";
+const string bgMapTrack3 = "assets/maps/Winter_road.png";
+const string bgMapTrack4 = "assets/maps/Summer_road.png";
+const string obstacle1Path = "assets/obstacles/obstacle1.png";
+const string obstacle2Path = "assets/obstacles/obstacle2.jpg";
+const string obstacle3Path = "assets/obstacles/obstacle3.jpg";
+// constants for track dimensions
 const int trackWidth = 1920;
 const int trackHeight = 1080;
-int lastCheckpointScore = 0;  // Last checkpoint score 
-bool passedCheckpoint = false;  // Flag to check if player passed a checkpoint
-Texture selectedCarTexture;
+
+
+int lastCheckpointScore = 0;  // last checkpoint score which is initialize as 0 because game start from score=0
+bool passedCheckpoint = false;  // variable to check if player passed a checkpoint
+Texture selectedCarTexture;   
+Texture selectedMapTexture;
+
+
+// called in start of the main function to show the video first
+void introVideo(RenderWindow& window) { 
+    const string frames = "assets/intro/ezgif-frame-";// beacuse of many numbers of images in the file i write this as bcz every image start with this name first the only difference is of the numbers at the end
+    const int startFrame = 1;  // the first frame name is 1 and last is 98 there are basically 98 images in intro folder
+    const int endFrame = 67;
+    const int fps = 25;    // video will be played at 30fps
+
+    vector<Texture> framesTexture;
+    Sprite framesSprite;
+    
+
+    // loop to take the path of the every image from 1 to 98 from intro folder 
+    for (int i = startFrame; i <= endFrame; ++i) {
+        ostringstream frameFile;
+        frameFile << frames << setfill('0') << setw(3) << i << ".png";
+
+        Texture texture;
+        if (texture.loadFromFile(frameFile.str())) {
+            framesTexture.push_back(move(texture));
+        }
+        else {
+            window.close();
+        }
+    }
+
+
+    // if no more frames are left then it will return the fun and the next menu section will be visible.....
+    if (framesTexture.empty()) {
+        return;
+    }
+
+    Clock frameClock; // clock class used to manage the time as per sec how many frames should apear on the screen
+    float frameTime = 1.0f / fps;
+    size_t currentFrame = 0; // current frame start from 0
+
+    while (window.isOpen() && currentFrame < framesTexture.size()) {
+        Event event;
+        while (window.pollEvent(event)) {
+            if (event.type == Event::Closed) {
+                window.close();
+            }
+        }
+
+        // it show the intro video as long as frames remains 
+
+        if (frameClock.getElapsedTime().asSeconds() > frameTime) {
+            framesSprite.setTexture(framesTexture[currentFrame]); // use to show the frames in sequence
+            framesSprite.setScale(
+                static_cast<float>(window.getSize().x) / framesTexture[currentFrame].getSize().x,
+                static_cast<float>(window.getSize().y) / framesTexture[currentFrame].getSize().y
+            );
+            // every time the next frame appear 
+            currentFrame++;
+            frameClock.restart();
+        }
+
+        window.clear();
+        window.draw(framesSprite);
+        window.display();
+    }
+}
+
+
+
+
+// this function is used to store the different states of the game like score and lives in a file of txt   (called in setting function)
+void saveGame(int& score, int& lives/* string& name*/) {
+    ofstream saveFile("config/save.txt");
+
+    if (saveFile.is_open()) {
+        /*saveFile << name << endl;*/
+        saveFile << score << endl;
+        saveFile << lives << endl;
+        
+
+        saveFile.close();
+    }
+    else {
+        cout << "There is some problem in opening the file.";
+    }
+}
+
+// this function is used to load the states of game (called in setting function)
+void loadGame(int& score, int& lives) {
+    ifstream loadFile("config/save.txt");
+
+    if (loadFile.is_open()) {
+        //loadFile >> name;
+        loadFile >> score;
+        loadFile >> lives;
+        
+
+        loadFile.close();
+    }
+    else {
+        cout << "There is some problem in opening the file.";
+    }
+}
+
+
+
+
+
+
+// used to make a new window where user can select a map.
+void mapSelection(RenderWindow& window, Font font, Texture& selectedMapTexture) {
+    Vector2f buttonSize(400, 80);// i have created a function of draw rounded button , so in every function i first create the different button their name color and hover effect and just pass them to the function
+    float cornerRadius = 20.0f;
+    Color buttonFillColor = Color(70, 130, 180);   // when there is no hover effect 
+    Color hoverColor = Color(100, 149, 237);    // on hover
+
+    // to load the sound of button click
+    SoundBuffer clickBuffer;
+    if (!clickBuffer.loadFromFile(clickSound)) {
+        cout << "Sound Not Found!";
+        window.close();
+    }
+    Sound clickSound(clickBuffer);
+
+    // background texture for map selection screen
+    Texture menuTitlebackgroundTexture;
+    if (!menuTitlebackgroundTexture.loadFromFile(menuTitleImage)) {
+        cout << "Image not found!" << endl;
+        window.close();
+    }
+
+    Sprite menuTitlebackgroundTrackSprite;
+    menuTitlebackgroundTrackSprite.setTexture(menuTitlebackgroundTexture);
+    menuTitlebackgroundTrackSprite.setScale(
+        float(1980) / menuTitlebackgroundTexture.getSize().x,
+        float(1080) / menuTitlebackgroundTexture.getSize().y
+    );
+
+    // helper function to draw rounded buttons
+    auto drawRoundedButton = [&](Vector2f position, const string& text, Text& textObject, bool isHovered) {
+        Color fillColor = isHovered ? hoverColor : buttonFillColor;
+
+        // Base rectangle
+        RectangleShape baseRect(Vector2f(buttonSize.x - 2 * cornerRadius, buttonSize.y));
+        baseRect.setFillColor(fillColor);
+        baseRect.setPosition(position.x + cornerRadius, position.y);
+
+        // Circles for corners
+        CircleShape corner(cornerRadius);
+        corner.setFillColor(fillColor);
+
+        // Text
+        textObject.setString(text);
+        textObject.setCharacterSize(50);
+        textObject.setFillColor(Color::White);
+        FloatRect textBounds = textObject.getLocalBounds();
+        textObject.setPosition(
+            position.x + (buttonSize.x - textBounds.width) / 2,
+            position.y + (buttonSize.y - textBounds.height) / 2 - 10
+        );
+
+        // Draw components
+        window.draw(baseRect);
+
+        // Draw corners
+        for (const auto& pos : vector<Vector2f>{
+            {position.x, position.y},
+            {position.x + buttonSize.x - 2 * cornerRadius, position.y},
+            {position.x, position.y + buttonSize.y - 2 * cornerRadius},
+            {position.x + buttonSize.x - 2 * cornerRadius, position.y + buttonSize.y - 2 * cornerRadius}
+            }) {
+            corner.setPosition(pos);
+            window.draw(corner);
+        }
+
+        window.draw(textObject);
+        };
+
+    // load map images from the assets folder 
+    vector<Texture> mapTextures(4);
+    bool texturesLoaded = true;
+    for (int i = 0; i < 4; ++i) {
+        if (!mapTextures[i].loadFromFile("assets/maps/map" + to_string(i + 1) + ".png")) {
+            texturesLoaded = false;
+            break;
+        }
+    }
+    if (!texturesLoaded) {
+        cout << "One or more map images failed to load!" << endl;
+        window.close();
+    }
+
+    vector<Sprite> mapSprites(4);
+    for (int i = 0; i < 4; ++i) {
+        mapSprites[i].setTexture(mapTextures[i]);
+        mapSprites[i].setScale(5.5f, 5.5f);  // Increase the size for better visibility
+    }
+
+    // map positioning for two rows (up and down)
+    vector<Vector2f> mapPositions = {
+        {100, 70}, // top-left
+        {1200, 70}, // top-right
+        {100, 550}, // bottom-left
+        {1300, 550}  // bottom-right
+    };
+
+    // map names for buttons
+    vector<string> mapNames = {
+        "Desert", "Highway", "Winter", "Summer"
+    };
+
+    int selectedMapIndex = -1;
+
+    // event loop to manage window interactions
+    while (window.isOpen()) {
+        Event event;
+        bool isBackHovered = false;
+
+        while (window.pollEvent(event)) {
+            if (event.type == Event::Closed) {
+                window.close();
+            }
+
+            Vector2i mousePos = Mouse::getPosition(window);
+
+            // map selection logic
+            for (int i = 0; i < 4; ++i) {
+                bool isHovered = mapSprites[i].getGlobalBounds().contains(Vector2f(mousePos));
+                if (isHovered) {
+                    mapSprites[i].setColor(Color::Yellow);
+                    if (event.type == Event::MouseButtonPressed && event.mouseButton.button == Mouse::Left) {
+                        selectedMapIndex = i;
+                        selectedMapTexture = mapTextures[selectedMapIndex];
+                    }
+                }
+                else {
+                    mapSprites[i].setColor(Color::White);
+                }
+            }
+
+            // "Confirm" button logic
+            FloatRect backBounds(1980 / 2 - buttonSize.x / 2, 1080 - 100, buttonSize.x, buttonSize.y);
+            if (backBounds.contains(Vector2f(mousePos))) {
+                isBackHovered = true;
+                if (event.type == Event::MouseButtonPressed && event.mouseButton.button == Mouse::Left) {
+                    clickSound.play();
+                    return;
+                }
+            }
+        }
+
+        Text backOption("Confirm", font, 50);
+        window.clear();
+        window.draw(menuTitlebackgroundTrackSprite);
+        drawRoundedButton(Vector2f(1980 / 2 - buttonSize.x / 2, 1080 - 100), "Back", backOption, isBackHovered);
+
+        // draw the map sprites at the new positions and add map names on top of each
+        for (int i = 0; i < 4; ++i) {
+            mapSprites[i].setPosition(mapPositions[i]);
+            window.draw(mapSprites[i]);
+
+            // create a button on top of each map on which the name of the ,map is written
+            Text mapText(mapNames[i], font, 50);  // map name for each button
+            mapText.setFillColor(Color::White);
+            drawRoundedButton(Vector2f(mapPositions[i].x, mapPositions[i].y - 40), mapNames[i], mapText, false);  // Text button position
+        }
+
+        window.display();
+    }
+}
 
 
 
@@ -44,6 +324,8 @@ Texture selectedCarTexture;
 
 
 
+
+// this function will help the user to restart the game from the last checkpoint (called in tryAgain function)
 void checkForCheckpoint(int& score) {
     //// If player crosses a checkpoint (e.g., 200, 400, etc.)
     //if (score >= lastCheckpointScore + 200) {
@@ -75,19 +357,22 @@ void checkForCheckpoint(int& score) {
 
 }
 
-void countDown(RenderWindow& window, Font& font) {
-    int countDownTime = 3;
-    Clock countDownClock;
-    int targetCharacterSize = 100;
 
-    // Create the countdown text object
+
+// this function will show the window of countdown 
+void countDown(RenderWindow& window, Font& font) {
+    int countDownTime = 3; // initialize the time with 3 
+    Clock countDownClock;
+    int targetCharacterSize = 100; // stregnth of the font 
+
+    // create the countdown text object
     Text countDownText(to_string(countDownTime), font);
     countDownText.setFillColor(Color::Green);
 
-    // Initial position calculation (centered)
+    // initial position calculation (centered)
     countDownText.setPosition(window.getSize().x / 2 - countDownText.getLocalBounds().width / 2,
         window.getSize().y / 2 - countDownText.getLocalBounds().height / 2);
-
+    // loading the countdown sound form the folder 
     SoundBuffer buffer;
     if (!buffer.loadFromFile(countDownSoundPath)) {
         cout << "Sound Not Found!";
@@ -96,10 +381,10 @@ void countDown(RenderWindow& window, Font& font) {
 
     Sound countDownSound(buffer);
 
-    // Play the countdown sound once
+    // play the countdown sound once
     countDownSound.play();
 
-    while (countDownTime > 1) { // Stop at 1, not 0
+    while (countDownTime > 1) { 
         Event event;
         while (window.pollEvent(event)) {
             if (event.type == Event::Closed) {
@@ -107,13 +392,13 @@ void countDown(RenderWindow& window, Font& font) {
             }
         }
 
-        // Check if a second has passed
+        // check if a second has passed
         if (countDownClock.getElapsedTime().asSeconds() >= 1.0f) {
             countDownTime--;
             countDownClock.restart();
         }
 
-        // Set text properties based on the countdown time
+        // set text properties based on the countdown time
         if (countDownTime == 3) {
             countDownText.setFillColor(Color::Green);
             targetCharacterSize = 100;
@@ -127,30 +412,30 @@ void countDown(RenderWindow& window, Font& font) {
             targetCharacterSize = 200;
         }
 
-        // Set the character size directly to the target size
+        // set the character size directly to the target size
         countDownText.setCharacterSize(targetCharacterSize);
 
-        // Recalculate position based on the new size
+        // recalculate position based on the new size beacuese every time a second the text strength increase so there is issue happening in its position
         countDownText.setPosition(window.getSize().x / 2 - countDownText.getLocalBounds().width / 2,
             window.getSize().y / 2 - countDownText.getLocalBounds().height / 2);
 
-        // Smoothly fade the text
+        // smoothly fade the text
         int alpha = (countDownTime * 255) / 3;
         countDownText.setFillColor(Color(countDownText.getFillColor().r, countDownText.getFillColor().g, countDownText.getFillColor().b, alpha));
 
-        // Update the text for the current countdown number
+        // update the text for the current countdown number
         countDownText.setString(to_string(countDownTime));
 
-        // Draw the countdown text
+        // draw the countdown text
         window.clear();
         window.draw(countDownText);
         window.display();
 
-        // Wait briefly before the next frame to avoid double counting
+        // wait briefly before the next frame to avoid double counting
         sleep(milliseconds(200));
     }
 
-    // Fade out the text after countdown finishes
+    // Fade out effect
     for (int i = 255; i >= 0; i -= 5) {
         window.clear();
         countDownText.setFillColor(Color(countDownText.getFillColor().r, countDownText.getFillColor().g, countDownText.getFillColor().b, i));
@@ -165,9 +450,9 @@ void countDown(RenderWindow& window, Font& font) {
 
 
 
-
-void resetToCheckpoint(int& lives, int& score, float& currentFuel, vector<RectangleShape>& obstacles, Sprite& carSprite, const int trackWidth, const int trackHeight, bool& carSelected, vector<CircleShape>& powerUps) {
-    // If the player has passed a checkpoint, reset the game to the last checkpoint state
+// this fucntion is used to restart the game from the last checkpoint ( called in the tryAgain function)
+void resetToCheckpoint(int& lives, int& score, float& currentFuel, Sprite& carSprite, const int trackWidth, const int trackHeight, bool& carSelected, vector<Sprite>& powerUps) {
+    // If the player has passed a checkpoint it will  reset the game to the last checkpoint state
     if (passedCheckpoint) {
         score = lastCheckpointScore;  // Set score to the last checkpoint score
         lives = 10;                   // Reset lives (or any other values)
@@ -175,10 +460,7 @@ void resetToCheckpoint(int& lives, int& score, float& currentFuel, vector<Rectan
         carSprite.setPosition(trackWidth / 2, trackHeight - 120); // Reset car position
         carSelected = false;          // Reset car selection
 
-        // Reset obstacles and power-ups to their state at the checkpoint
-        for (auto& obstacle : obstacles) {
-            obstacle.setPosition(rand() % trackWidth, rand() % (trackHeight / 2)); // Reposition obstacles
-        }
+        
 
         for (auto& powerUp : powerUps) {
             powerUp.setPosition(rand() % trackWidth, rand() % (trackHeight / 2)); // Reposition power-ups
@@ -196,7 +478,7 @@ void resetToCheckpoint(int& lives, int& score, float& currentFuel, vector<Rectan
 
 
 
-
+// this function is used to create the rounded buttons in every other function i have created many buttons of same shape and color so i created a function to craete the button only by just passing the name of the button and their position
 void drawRoundedButton(RenderWindow& window, Vector2f position, Vector2f size, const string& text, Font& font, bool isHovered, Color fillColor, Color hoverColor) {
     Color buttonColor = isHovered ? hoverColor : fillColor;
 
@@ -243,130 +525,75 @@ void drawRoundedButton(RenderWindow& window, Vector2f position, Vector2f size, c
 
 
 
-struct GameState {
-    bool isMusicPaused;
-    float volume;
-    bool isFullscreen;
-
-    int score;             // Save score
-    int lives;             // Save number of lives
-    Vector2f playerPos;    // Save player position
-    float songPosition;    // Save current position of the song
-
-    // Save settings and game state to a file
-    void save(const string& filename) {
-        ofstream file(filename);
-        if (file.is_open()) {
-            file << "MusicPaused=" << isMusicPaused << "\n";
-            file << "Volume=" << volume << "\n";
-            file << "Fullscreen=" << isFullscreen << "\n";
-
-            // Save game-specific data
-            file << "Score=" << score << "\n";
-            file << "Lives=" << lives << "\n";
-            file << "PlayerPosX=" << playerPos.x << "\n";
-            file << "PlayerPosY=" << playerPos.y << "\n";
-            file << "SongPosition=" << songPosition << "\n";
-
-            file.close();
-        }
-        else {
-            cout << "Failed to save the game state." << endl;
-        }
-    }
-
-    // Load settings and game state from a file
-    void load(const string& filename) {
-        ifstream file(filename);
-        if (file.is_open()) {
-            string line;
-            while (getline(file, line)) {
-                if (line.find("MusicPaused=") != string::npos) {
-                    isMusicPaused = (line.substr(12) == "1");
-                }
-                else if (line.find("Volume=") != string::npos) {
-                    volume = stof(line.substr(7));
-                }
-                else if (line.find("Fullscreen=") != string::npos) {
-                    isFullscreen = (line.substr(11) == "1");
-                }
-                else if (line.find("Score=") != string::npos) {
-                    score = stoi(line.substr(6));  // Load score
-                }
-                else if (line.find("Lives=") != string::npos) {
-                    lives = stoi(line.substr(6));  // Load lives
-                }
-                else if (line.find("PlayerPosX=") != string::npos) {
-                    playerPos.x = stof(line.substr(11));  // Load player X position
-                }
-                else if (line.find("PlayerPosY=") != string::npos) {
-                    playerPos.y = stof(line.substr(11));  // Load player Y position
-                }
-                else if (line.find("SongPosition=") != string::npos) {
-                    songPosition = stof(line.substr(13));  // Load song position
-                }
-            }
-            file.close();
-        }
-        else {
-            cout << "Failed to load the game state." << endl;
-        }
-    }
-};
 
 
-// Function to show the pause menu
-void carSelection(RenderWindow& window,Font font, bool& carSelected, Texture& selectedCarTexture);
-void menuSection(RenderWindow& window, Font& font, Texture& selectedCarTexture,bool isPaused,bool& carSelected,Music& backgroundMusic);
+
+// function declartions 
+void carSelection(RenderWindow& window, Font font, bool& carSelected, Texture& selectedCarTexture);
+void menuSection(RenderWindow& window, Font& font, Texture& selectedCarTexture, bool isPaused, bool& carSelected, Music& backgroundMusic,int &score, int & lives);
 void generateObstacles(vector<RectangleShape>& obstacles, int numObstacles, int obstacleSize, Vector2f trackBounds);
-void settingsWindow(RenderWindow& window, Font& font, Texture& selectedCarTexture, bool& carSelected,bool ispaused, Music& backgroundMusic);
-int showPauseMenu(RenderWindow& window, Font& font, bool& ispaused, Texture selectedCarTexture,bool carSelected, Music& backgroundMusic);
+void settingsWindow(RenderWindow& window, Font& font, Texture& selectedCarTexture, bool& carSelected, bool ispaused, Music& backgroundMusic, int& score, int& lives);
+int showPauseMenu(RenderWindow& window, Font& font, bool& ispaused, Texture selectedCarTexture, bool carSelected, Music& backgroundMusic,int &score,int &lives);
 void showMessage(RenderWindow& window, Font& font);
 void tryAgain(RenderWindow& window, Font& font, bool& isPaused, bool& carSelected, int& lives, int& score, float& currentFuel, vector<RectangleShape>& obstacles, Sprite& carSprite, const int trackWidth, const int trackHeight, Music& backgroundMusic, vector<CircleShape>& powerUps);
-void resetGame(int& lives, int& score, float& currentFuel, vector<RectangleShape>& obstacles, Sprite& carSprite, const int trackWidth, const int trackHeight,bool& carSelected);
-void managePowerUps(RenderWindow& window, Sprite& carSprite, vector<CircleShape>& powerUps, float& currentFuel, int& score, int& speedBoostDuration,int& lives, int powerUpSize, int numPowerUps, Vector2f trackBounds);
+void resetGame(int& lives, int& score, float& currentFuel, vector<RectangleShape>& obstacles, Sprite& carSprite, const int trackWidth, const int trackHeight, bool& carSelected);
+void managePowerUps(RenderWindow& window, Sprite& carSprite, vector<Sprite>& powerUps, Texture& fuelTexture, Texture& scoreTexture, Texture& livesTexture, float& currentFuel, int& score, int& speedBoostDuration, int& lives, Vector2f trackBounds);
 void addProfile(RenderWindow& window, Font& font, Sound& clickSound);
 
-// Function to generate obstacles
-void generateObstacles(vector<RectangleShape>& obstacles, int numObstacles, int obstacleSize, Vector2f trackBounds) {
-    obstacles.clear();
-    srand(static_cast<unsigned>(time(0))); // Initialize random seed
-    for (int i = 0; i < numObstacles; ++i) {
-        RectangleShape obstacle(Vector2f(obstacleSize, obstacleSize));
-        obstacle.setFillColor(Color::Red);
 
-        // Randomize both x and y positions within bounds
-        float randomX = 300 + rand() % (1600 - 300 - obstacleSize); // Consistent x within 300-1600
-        float randomY = rand() % int(trackBounds.y / 2);            // Random y within the top half of the track
+// this function is used to create the obstacles ( called in the main function)
+void generateObstacles(vector<Sprite>& obstacles, int numObstacles, Vector2f trackBounds, Texture &obstacleTexture) {
+    obstacles.clear(); // clear existing obstacles
+    srand(static_cast<unsigned>(time(0))); // initialize random seed
+
+    // the image is already loaded and then pass to this function and used here
+
+    for (int i = 0; i < numObstacles; ++i) {
+        // create a sprite and assign the texture
+        Sprite obstacle;
+        obstacle.setTexture(obstacleTexture);
+
+        // get the size of the texture to set positions properly
+        FloatRect textureBounds = obstacle.getGlobalBounds();
+
+        // position the obstacle within bounds so that they should appear only in the road 
+        float randomX = 300 + rand() % (1600 - 300 - static_cast<int>(textureBounds.width)); // X within 300-1600
+        float randomY = rand() % int(trackBounds.y / 2 - textureBounds.height);              // Y within the top half
         obstacle.setPosition(randomX, randomY);
 
+        // add the sprite to the obstacles vector
         obstacles.push_back(obstacle);
     }
 }
+
+
+
+// this fucntion is used to create the diff profiles and these profiles are created in the profiles.txt 
 void addProfile(RenderWindow& window, Font& font, Sound& clickSound) {
+    // same as every fun used to create the buttons
     Vector2f buttonSize(200, 80);
     float cornerRadius = 20.0f; // Radius for rounded corners
     Color buttonFillColor = Color(70, 130, 180); // Steel blue for buttons
     Color hoverColor = Color(100, 149, 237); // Light steel blue for hover effect
 
-    // Set up text for entering the profile name
+    // set up text for entering the profile name
     Text profileInputText("Enter Profile Name: ", font, 50);
     profileInputText.setFillColor(Color::White);
     profileInputText.setPosition(500, 300);
-
+    // initally there is no name
     string newProfileName = "";
     bool isProfileNameBeingEntered = true;
 
-    // Set up text for profile name input
+    // set up text for profile name input
     Text inputText("", font, 50);
     inputText.setFillColor(Color::White);
     inputText.setPosition(500, 400);
 
-    // Buttons Text
+    // buttons Text
     Text okButtonText("OK", font, 40);
     Text cancelButtonText("Cancel", font, 40);
 
-    // Set up buttons
+    // set up buttons position, colors
     RectangleShape okButton(Vector2f(buttonSize.x, buttonSize.y));
     okButton.setFillColor(buttonFillColor);
     okButton.setPosition(500, 500);
@@ -479,6 +706,9 @@ void addProfile(RenderWindow& window, Font& font, Sound& clickSound) {
     }
 }
 
+
+
+// this is used to save the playtime 
 void savePlayTime(float playTime) {
     ofstream file("playtime.txt");
     if (file.is_open()) {
@@ -498,33 +728,37 @@ float loadPlayTime() {
     return playTime;
 }
 
+// this function is used to create the power ups in the game (called in the main function)
+void managePowerUps(RenderWindow& window, Sprite& carSprite, vector<Sprite>& powerUps, Texture& fuelTexture, Texture& scoreTexture, Texture& livesTexture, float& currentFuel, int& score, int& speedBoostDuration, int& lives, Vector2f trackBounds) {
 
-void managePowerUps(RenderWindow& window, Sprite& carSprite, vector<CircleShape>& powerUps, float& currentFuel, int& score, int& speedBoostDuration, int& lives, int powerUpSize, Vector2f trackBounds) {
-    // Generate power-ups based on score milestones
+    // generate power-ups based on score milestones (fuel will create after every 50 score)
     if (score % 50 == 0 && score != 0) {
-        // Add a fuel power-up if not already present
-        if (std::none_of(powerUps.begin(), powerUps.end(), [](CircleShape& p) { return p.getFillColor() == Color::Green; })) {
-            CircleShape fuelPowerUp(powerUpSize);
-            fuelPowerUp.setFillColor(Color::Green); // Fuel power-up color
-            fuelPowerUp.setPosition(300 + rand() % (1600 - 300 - powerUpSize), 0); // Restrict within width 300 to 1600
+        // add a fuel power-up if not already present
+        if (std::none_of(powerUps.begin(), powerUps.end(), [&fuelTexture](Sprite& p) { return p.getTexture() == &fuelTexture; })) {
+            Sprite fuelPowerUp;
+            fuelPowerUp.setTexture(fuelTexture);
+            fuelPowerUp.setPosition(300 + rand() % (1600 - 300 - static_cast<int>(fuelPowerUp.getGlobalBounds().width)), 0);
+            fuelPowerUp.setScale(0.5f, 0.5f);
             powerUps.push_back(fuelPowerUp);
         }
     }
-
+    // other two power ups create every 100 score
     if (score % 100 == 0 && score != 0) {
-        // Add a score power-up if not already present
-        if (std::none_of(powerUps.begin(), powerUps.end(), [](CircleShape& p) { return p.getFillColor() == Color::Blue; })) {
-            CircleShape scorePowerUp(powerUpSize);
-            scorePowerUp.setFillColor(Color::Blue); // Boost power-up color
-            scorePowerUp.setPosition(300 + rand() % (1600 - 300 - powerUpSize), 0); // Restrict within width 300 to 1600
+        // add a score power-up if not already present
+        if (std::none_of(powerUps.begin(), powerUps.end(), [&scoreTexture](Sprite& p) { return p.getTexture() == &scoreTexture; })) {
+            Sprite scorePowerUp;
+            scorePowerUp.setTexture(scoreTexture);
+            scorePowerUp.setPosition(300 + rand() % (1600 - 300 - static_cast<int>(scorePowerUp.getGlobalBounds().width)), 0);
+            scorePowerUp.setScale(0.5f, 0.5f);
             powerUps.push_back(scorePowerUp);
         }
 
-        // Add a lives power-up if not already present
-        if (std::none_of(powerUps.begin(), powerUps.end(), [](CircleShape& p) { return p.getFillColor() == Color::Red; })) {
-            CircleShape livesPowerUp(powerUpSize);
-            livesPowerUp.setFillColor(Color::Red); // Lives power-up color
-            livesPowerUp.setPosition(300 + rand() % (1600 - 300 - powerUpSize), 0); // Restrict within width 300 to 1600
+        // add a lives power-up if not already present
+        if (std::none_of(powerUps.begin(), powerUps.end(), [&livesTexture](Sprite& p) { return p.getTexture() == &livesTexture; })) {
+            Sprite livesPowerUp;
+            livesPowerUp.setTexture(livesTexture);
+            livesPowerUp.setPosition(300 + rand() % (1600 - 300 - static_cast<int>(livesPowerUp.getGlobalBounds().width)), 0);
+            livesPowerUp.setScale(0.5f, 0.5f);
             powerUps.push_back(livesPowerUp);
         }
     }
@@ -544,20 +778,20 @@ void managePowerUps(RenderWindow& window, Sprite& carSprite, vector<CircleShape>
 
         // Check for collision
         if (carSprite.getGlobalBounds().intersects(it->getGlobalBounds())) {
-            // Determine the type of the power-up based on its color
-            if (it->getFillColor() == Color::Green) {
+            // Determine the type of the power-up based on its texture
+            if (it->getTexture() == &fuelTexture) {
                 // Fuel Power-Up
                 currentFuel = std::min(currentFuel + 20.0f, 100.0f); // Add fuel up to max
                 cout << "Collected Power-Up: Fuel Refilled!\n";
             }
-            else if (it->getFillColor() == Color::Blue) {
+            else if (it->getTexture() == &scoreTexture) {
                 // Score Power-Up
-                score += 50; // Speed boost for 300 frames
-                cout << "Collected Power-Up: Speed Boost Activated!\n";
+                score += 50;
+                cout << "Collected Power-Up: Score Boost Activated!\n";
             }
-            else if (it->getFillColor() == Color::Red) {
+            else if (it->getTexture() == &livesTexture) {
                 // Lives Power-Up
-                lives++; // Increase lives
+                lives++;
                 cout << "Collected Power-Up: Extra Life!\n";
             }
 
@@ -568,7 +802,7 @@ void managePowerUps(RenderWindow& window, Sprite& carSprite, vector<CircleShape>
         }
     }
 
-    // Handle Speed Boost Duration
+    // Handle Speed Boost Duration (if applicable)
     if (speedBoostDuration > 0) {
         --speedBoostDuration;
     }
@@ -581,12 +815,18 @@ void managePowerUps(RenderWindow& window, Sprite& carSprite, vector<CircleShape>
 
 
 
+
+// this fucntion is used to select the cars (called in the menuSection function)
 void carSelection(RenderWindow& window, Font font, bool& carSelected, Texture& selectedCarTexture) {
+    
+    //creating boxes to add the cars in that boxes
     Vector2f buttonSize(400, 80);
     float cornerRadius = 20.0f;
     Color buttonFillColor = Color(70, 130, 180);
     Color hoverColor = Color(100, 149, 237);
 
+
+    // sound of the click
     SoundBuffer clickBuffer;
     if (!clickBuffer.loadFromFile(clickSound)) {
         cout << "Sound Not Found!";
@@ -594,7 +834,7 @@ void carSelection(RenderWindow& window, Font font, bool& carSelected, Texture& s
     }
     Sound clickSound(clickBuffer);
 
-    // Background texture
+    // background texture
     Texture menuTitlebackgroundTexture;
     if (!menuTitlebackgroundTexture.loadFromFile(menuTitleImage)) {
         cout << "Image not found!" << endl;
@@ -652,7 +892,7 @@ void carSelection(RenderWindow& window, Font font, bool& carSelected, Texture& s
     vector<Texture> carTextures(6);
     bool texturesLoaded = true;
     for (int i = 0; i < 6; ++i) {
-        if (!carTextures[i].loadFromFile("assets/cars/Image" + to_string(i + 1)+".png")) {
+        if (!carTextures[i].loadFromFile("assets/cars/Image" + to_string(i + 1) + ".png")) {
             texturesLoaded = false;
             break;
         }
@@ -661,14 +901,14 @@ void carSelection(RenderWindow& window, Font font, bool& carSelected, Texture& s
         cout << "One or more car images failed to load!" << endl;
         window.close();
     }
-
+    // this will show the all 6 images in the diff boxes
     vector<Sprite> carSprites(6);
     for (int i = 0; i < 6; ++i) {
         carSprites[i].setTexture(carTextures[i]);
         carSprites[i].setScale(2.5f, 2.5f);
         carSprites[i].setPosition(135 + i * 300, 1080 / 2 - 120);
     }
-
+    // this will craete the boxes
     vector<RectangleShape> carBoxes(6);
     for (int i = 0; i < 6; ++i) {
         carBoxes[i].setSize(Vector2f(250, 150));
@@ -758,10 +998,8 @@ void carSelection(RenderWindow& window, Font font, bool& carSelected, Texture& s
 }
 
 
-
-
-
-void resetGame(int& lives, int& score, float& currentFuel, vector<RectangleShape>& obstacles, Sprite& carSprite, const int trackWidth, const int trackHeight, bool& carSelected, vector<CircleShape>& powerUps, float& totalTime) {
+// this function will used when user is want to go back to the menu then this function will completely reset the game the car selected map every thing (called in the tryAgain)
+void resetGame(int& lives, int& score, float& currentFuel, vector<RectangleShape>& obstacles, Sprite& carSprite, const int trackWidth, const int trackHeight, bool& carSelected, vector<Sprite>& powerUps, float& totalTime, Texture& selectedCarTexture) {
     // Reset game variables
     lives = 10; // Reset lives
     score = 0; // Reset score
@@ -769,11 +1007,42 @@ void resetGame(int& lives, int& score, float& currentFuel, vector<RectangleShape
     carSprite.setPosition(trackWidth / 2, trackHeight - 120); // Reset car position
     carSelected = false; // Reset car selection
     totalTime = 0.0f;
+    // Properly reset the selected car texture
+    selectedCarTexture = sf::Texture(); // Reinitialize the texture to a default state
+    carSprite.setTexture(selectedCarTexture); // Detach the texture from the sprite
 
     // Reset obstacles - reposition randomly within the screen bounds
     for (auto& obstacle : obstacles) {
         obstacle.setPosition(rand() % trackWidth, rand() % (trackHeight / 2)); // Place obstacles at random positions within upper half of the track
     }
+
+    // Reset power-ups - reposition them randomly
+    for (auto& powerUp : powerUps) {
+        powerUp.setPosition(rand() % trackWidth, rand() % (trackHeight / 2)); // Place power-ups at random positions
+    }
+
+    
+}
+
+
+
+
+// this function will only reset the specific things like score , lives and fuel etc .. (called in the tryAgain function)
+void restartGame(int& lives, int& score, float& currentFuel, Sprite& carSprite, const int trackWidth, const int trackHeight, bool& carSelected, vector<Sprite>& powerUps, float& totalTime, Texture& selectedCarTexture, float& previousPlayTime, Clock& gameClock) {
+    // Reset game variables
+    lives = 10; // Reset lives
+    score = 0; // Reset score
+    currentFuel = 100.0f; // Reset fuel
+    carSprite.setPosition(trackWidth / 2, trackHeight - 120); // Reset car position
+    carSelected = false; // Reset car selection
+    totalTime = -3.0f;
+    previousPlayTime = -3.0f;
+    gameClock.restart();
+    //// Properly reset the selected car texture
+    //selectedCarTexture = sf::Texture(); // Reinitialize the texture to a default state
+    //carSprite.setTexture(selectedCarTexture); // Detach the texture from the sprite
+
+    
 
     // Reset power-ups - reposition them randomly
     for (auto& powerUp : powerUps) {
@@ -786,13 +1055,16 @@ void resetGame(int& lives, int& score, float& currentFuel, vector<RectangleShape
 
 
 
-
-void tryAgain(RenderWindow& window, Font& font, bool& isPaused, bool& carSelected, int& lives, int& score, float& currentFuel, vector<RectangleShape>& obstacles, Sprite& carSprite, const int trackWidth, const int trackHeight, Music& backgroundMusic, vector<CircleShape>& powerUps, float totalTime) {
+// this function is used to show the user the the final score , playtime, cause of lose of game and other options like restart the game etc ( called after losing game either by losing due to score or fuel)
+void tryAgain(RenderWindow& window, Font& font, bool& isPaused, bool& carSelected, int& lives, int& score, float& currentFuel, Sprite& carSprite, const int trackWidth, const int trackHeight, Music& backgroundMusic, vector<Sprite>& powerUps, float& totalTime, Texture& selectedCarTexture, float& previousPlayTime, Clock& gameClock) {
+    // same as every function to create the specific buttons
+    
     Vector2f buttonSize(400, 80); // Button Size
     float cornerRadius = 20.0f;   // Radius for rounded corners
     Color buttonFillColor = Color(70, 130, 180); // Steel blue for buttons
     Color hoverColor = Color(100, 149, 237);     // Light steel blue for hover effect
 
+    // sound of button click
     SoundBuffer clickBuffer;
     if (!clickBuffer.loadFromFile(clickSound)) {
         cout << "Sound Not Found!";
@@ -870,7 +1142,7 @@ void tryAgain(RenderWindow& window, Font& font, bool& isPaused, bool& carSelecte
     Text lossReasonText("", font, 40);
     lossReasonText.setFillColor(Color::Yellow);
 
-    // Set loss reason text
+    // this will check that if user lose due to either score or fuel then it will show the cause of lose
     if (currentFuel == 0) {
         lossReasonText.setString("Out of Fuel!");
     }
@@ -904,7 +1176,7 @@ void tryAgain(RenderWindow& window, Font& font, bool& isPaused, bool& carSelecte
                 isLastCheckpointHovered = true;
                 if (pauseEvent.type == Event::MouseButtonPressed && pauseEvent.mouseButton.button == Mouse::Left) {
                     clickSound.play();
-                    resetToCheckpoint(lives, score, currentFuel, obstacles, carSprite, trackWidth, trackHeight, carSelected, powerUps);
+                    resetToCheckpoint(lives, score, currentFuel, carSprite, trackWidth, trackHeight, carSelected, powerUps);
                     countDown(window, font);
                     return;
                 }
@@ -914,7 +1186,11 @@ void tryAgain(RenderWindow& window, Font& font, bool& isPaused, bool& carSelecte
                 if (pauseEvent.type == Event::MouseButtonPressed && pauseEvent.mouseButton.button == Mouse::Left) {
                     clickSound.play();
                     isPaused = false;
-                    resetGame(lives, score, currentFuel, obstacles, carSprite, trackWidth, trackHeight, carSelected, powerUps,totalTime);
+                    // Save the playtime and reset the timer
+                    previousPlayTime += totalTime;
+                    savePlayTime(previousPlayTime);
+                    totalTime = -3.0f;
+                    restartGame(lives, score, currentFuel, carSprite, trackWidth, trackHeight, carSelected, powerUps, totalTime, selectedCarTexture, previousPlayTime, gameClock);
                     countDown(window, font);
                     return;
                 }
@@ -923,8 +1199,8 @@ void tryAgain(RenderWindow& window, Font& font, bool& isPaused, bool& carSelecte
                 isMainMenuHovered = true;
                 if (pauseEvent.type == Event::MouseButtonPressed && pauseEvent.mouseButton.button == Mouse::Left) {
                     clickSound.play();
-                    resetGame(lives, score, currentFuel, obstacles, carSprite, trackWidth, trackHeight, carSelected, powerUps,totalTime);
-                    menuSection(window, font, selectedCarTexture, isPaused, carSelected, backgroundMusic);
+                    restartGame(lives, score, currentFuel, carSprite, trackWidth, trackHeight, carSelected, powerUps, totalTime, selectedCarTexture, previousPlayTime, gameClock);
+                    menuSection(window, font, selectedCarTexture, isPaused, carSelected, backgroundMusic,score,lives);
                     return;
                 }
             }
@@ -959,174 +1235,13 @@ void tryAgain(RenderWindow& window, Font& font, bool& isPaused, bool& carSelecte
 
 
 
-    
-
-
-
-
-
-
-void showMessage(RenderWindow& window, Font& font) {
-    // Create gradient background shading for better visibility of the text
-    RectangleShape background(Vector2f(window.getSize()));
-    background.setFillColor(Color(0, 0, 0, 200));  // Semi-transparent black
-
-
-    SoundBuffer clickBuffer;
-    if (!clickBuffer.loadFromFile(clickSound)) {
-        cout << "Sound Not Found!";
-        window.close();
-    }
-    Sound clickSound(clickBuffer);
-
-
-    // Create the message text
-    Text message("You Cannot Select a Car while Playing!", font, 30);
-    message.setFillColor(Color::Red);  // White color for the text
-    FloatRect messageBounds = message.getLocalBounds();
-    message.setOrigin(messageBounds.width / 2, messageBounds.height / 2);
-    message.setPosition(window.getSize().x / 2, window.getSize().y / 2 - 150); // Center the text
-    message.setStyle(Text::Bold);  // Bold text style for emphasis
-
-    // Animation variables for message scaling
-    float scale = 0.7f;  // Initial scale
-    bool scalingUp = true;
-
-    // Helper function to draw a rounded button with hover and shadow effects
-    auto drawCurvedButton = [&](Vector2f position, const std::string& text, Text& textObject, bool isHovered) {
-        // Button colors
-        Color buttonColor = Color(70, 130, 180);     // Steel blue for default
-        Color hoverColor = Color(100, 149, 237);     // Light steel blue for hover
-        Color shadowColor = Color(0, 0, 0, 100);     // Semi-transparent shadow
-
-        // Determine fill color based on hover state
-        Color fillColor = isHovered ? hoverColor : buttonColor;
-
-        // Button dimensions
-        float width = 400, height = 80, cornerRadius = height / 2;
-
-        // Shadow effect (slightly offset)
-        RectangleShape shadow(Vector2f(width - 2 * cornerRadius, height));
-        shadow.setFillColor(shadowColor);
-        shadow.setPosition(position.x + cornerRadius + 5, position.y + 5);
-
-        CircleShape shadowLeftCorner(cornerRadius);
-        shadowLeftCorner.setFillColor(shadowColor);
-        shadowLeftCorner.setPosition(position.x + 5, position.y + 5);
-
-        CircleShape shadowRightCorner(cornerRadius);
-        shadowRightCorner.setFillColor(shadowColor);
-        shadowRightCorner.setPosition(position.x + width - 2 * cornerRadius + 5, position.y + 5);
-
-        // Draw shadow
-        window.draw(shadow);
-        window.draw(shadowLeftCorner);
-        window.draw(shadowRightCorner);
-
-        // Create button shape with rounded sides
-        RectangleShape button(Vector2f(width - 2 * cornerRadius, height)); // Central rectangle
-        button.setFillColor(fillColor);
-        button.setPosition(position.x + cornerRadius, position.y);
-
-        CircleShape leftCorner(cornerRadius);
-        leftCorner.setFillColor(fillColor);
-        leftCorner.setPosition(position.x, position.y);
-
-        CircleShape rightCorner(cornerRadius);
-        rightCorner.setFillColor(fillColor);
-        rightCorner.setPosition(position.x + width - 2 * cornerRadius, position.y);
-
-        // Draw the button
-        window.draw(button);
-        window.draw(leftCorner);
-        window.draw(rightCorner);
-
-        // Set up button text
-        textObject.setString(text);
-        textObject.setCharacterSize(40); // Smaller font size for buttons
-        textObject.setFillColor(Color::White);
-        FloatRect textBounds = textObject.getLocalBounds();
-        textObject.setOrigin(textBounds.width / 2, textBounds.height / 2);
-        textObject.setPosition(position.x + width / 2, position.y + height / 2 - 5);
-
-        // Draw the text
-        window.draw(textObject);
-        };
-
-    // "OK" button text
-    Text okText("OK", font, 40); // Adjust font size
-    bool isOkButtonHovered = false;
-
-    // Main animation and event loop
-    while (window.isOpen()) {
-        Event event;
-        while (window.pollEvent(event)) {
-            if (event.type == Event::Closed) {
-                window.close();
-                return;
-            }
-
-            // Check if the OK button is hovered or clicked
-            Vector2i mousePos = Mouse::getPosition(window);
-            FloatRect okBounds(
-                window.getSize().x / 2 - 200,
-                window.getSize().y / 2 + 50,
-                400, 80
-            ); // Button bounds
-            if (okBounds.contains(Vector2f(mousePos))) {
-                isOkButtonHovered = true;
-                if (event.type == Event::MouseButtonPressed && event.mouseButton.button == Mouse::Left) {
-                    clickSound.play();
-                    return;  // Close the message
-                }
-            }
-            else {
-                isOkButtonHovered = false;
-            }
-        }
-
-        // Animation: Scale the message text up and down
-        if (scalingUp) {
-            scale += 0.002f;
-            if (scale >= 1.0f) scalingUp = false;
-        }
-        else {
-            scale -= 0.002f;
-            if (scale <= 0.9f) scalingUp = true;
-        }
-        message.setScale(scale, scale);
-
-        // Clear the window
-        window.clear();
-        window.draw(background);  // Draw the semi-transparent background
-        window.draw(message);     // Draw the animated message text
-
-        // Draw the "OK" button
-        drawCurvedButton(
-            Vector2f(window.getSize().x / 2 - 200, window.getSize().y / 2 + 50), // Adjusted position
-            "OK", okText, isOkButtonHovered
-        );
-
-        window.display(); // Display all the elements
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
+// this function will show the message to select the car before starting game 
 void showChooseCarMessage(RenderWindow& window, Font& font, bool& carSelected) {
     // Semi-transparent black background for better visibility of the text
     RectangleShape background(Vector2f(window.getSize()));
     background.setFillColor(Color(0, 0, 0, 200));
 
+    // sound of button click
     SoundBuffer clickBuffer;
     if (!clickBuffer.loadFromFile(clickSound)) {
         cout << "Sound Not Found!";
@@ -1238,8 +1353,10 @@ void showChooseCarMessage(RenderWindow& window, Font& font, bool& carSelected) {
 
 
 
-
-void menuSection(RenderWindow& window, Font& font, Texture& selectedCarTexture, bool ispaused, bool& carSelected, Music& backgroundMusic) {
+// this function will show the different options to user to either start setting and car selection etc (called in the main function)
+void menuSection(RenderWindow& window, Font& font, Texture& selectedCarTexture, bool ispaused, bool& carSelected, Music& backgroundMusic,int& score,int& lives) {
+    
+    // same as every function to create the buttons
     Vector2f buttonSize(400, 80);
     float cornerRadius = 20.0f; // Radius for rounded corners
     Color buttonFillColor = Color(70, 130, 180); // Steel blue for buttons
@@ -1252,6 +1369,8 @@ void menuSection(RenderWindow& window, Font& font, Texture& selectedCarTexture, 
     }
     Sound clickSound(clickBuffer);
 
+
+    // loading the background image 
     Texture menuTitlebackgroundTexture;
     if (!menuTitlebackgroundTexture.loadFromFile(menuTitleImage)) {
         cout << "Image not found!" << endl;
@@ -1307,7 +1426,7 @@ void menuSection(RenderWindow& window, Font& font, Texture& selectedCarTexture, 
 
     // Create button text objects
     Text startOption("", font), settingOption("", font), quitOption("", font), carSelectionOption("", font);
-    bool isStartHovered = false, isSettingHovered = false, isQuitHovered = false, isCarSelectionHovered = false;
+    bool isStartHovered = false, isSettingHovered = false, isQuitHovered = false, isCarSelectionHovered = false; // initially there is no hover effect
 
     while (window.isOpen()) {
         Event event;
@@ -1328,6 +1447,7 @@ void menuSection(RenderWindow& window, Font& font, Texture& selectedCarTexture, 
                         showChooseCarMessage(window, font, carSelected);
                     }
                     else {
+                        mapSelection(window, font, selectedMapTexture);
                         countDown(window, font);
                         return; // Start the game
                     }
@@ -1340,10 +1460,10 @@ void menuSection(RenderWindow& window, Font& font, Texture& selectedCarTexture, 
             // Handle Car Selection Button hover and click
             FloatRect carSelectionBounds(130, 300, buttonSize.x, buttonSize.y);
             if (carSelectionBounds.contains(Vector2f(mousePos))) {
-                isCarSelectionHovered = true;
+                isCarSelectionHovered = true;// whenever the cursor appear in this boundry then hover effet will be showen
                 if (event.type == Event::MouseButtonPressed && event.mouseButton.button == Mouse::Left) {
                     clickSound.play();
-                    carSelection(window, font, carSelected, selectedCarTexture);
+                    carSelection(window, font, carSelected, selectedCarTexture); // open the carSelection window to select cars
                 }
             }
             else {
@@ -1356,7 +1476,7 @@ void menuSection(RenderWindow& window, Font& font, Texture& selectedCarTexture, 
                 isSettingHovered = true;
                 if (event.type == Event::MouseButtonPressed && event.mouseButton.button == Mouse::Left) {
                     clickSound.play();
-                    settingsWindow(window, font, selectedCarTexture, carSelected, ispaused, backgroundMusic);
+                    settingsWindow(window, font, selectedCarTexture, carSelected, ispaused, backgroundMusic,score,lives); // opening setting
                 }
             }
             else {
@@ -1369,7 +1489,7 @@ void menuSection(RenderWindow& window, Font& font, Texture& selectedCarTexture, 
                 isQuitHovered = true;
                 if (event.type == Event::MouseButtonPressed && event.mouseButton.button == Mouse::Left) {
                     clickSound.play();
-                    window.close(); // Close the window
+                    window.close(); // closing game
                 }
             }
             else {
@@ -1393,8 +1513,10 @@ void menuSection(RenderWindow& window, Font& font, Texture& selectedCarTexture, 
 
 
 
-
-void settingsWindow(RenderWindow& window, Font& font, Texture& selectedCarTexture, bool& carSelected, bool ispaused, Music& backgroundMusic) {
+// this function is used to control the different game states like music screen etc .. (called in the mainMenu fucntion)
+void settingsWindow(RenderWindow& window, Font& font, Texture& selectedCarTexture, bool& carSelected, bool ispaused, Music& backgroundMusic,int &score,int &lives) {
+    
+    // same as every function to create the buttons
     Vector2f buttonSize(400, 80);
     Vector2f checkboxSize(30, 30);
     float cornerRadius = 20.0f;
@@ -1403,6 +1525,7 @@ void settingsWindow(RenderWindow& window, Font& font, Texture& selectedCarTextur
     Color checkboxColor = Color(255, 255, 255); // White
     Color checkboxCheckedColor = Color(0, 255, 0); // Green
     SoundBuffer clickBuffer;
+
 
     if (!clickBuffer.loadFromFile(clickSound)) {
         cout << "Sound Not Found!" << endl;
@@ -1474,24 +1597,11 @@ void settingsWindow(RenderWindow& window, Font& font, Texture& selectedCarTextur
 
     float volume = 50;
     backgroundMusic.setVolume(volume);
-
+    // text of volume 
     Text volumeText("Volume", font, 50);
     volumeText.setFillColor(Color::White);
     volumeText.setPosition(1980 / 2 - volumeText.getLocalBounds().width / 2, 1080 - 470);
 
-    GameState gameState;
-    gameState.load("settings.txt");  // Load settings
-
-    // Apply loaded settings
-    backgroundMusic.setVolume(gameState.volume);
-    if (gameState.isMusicPaused) {
-        backgroundMusic.pause();
-    }
-    else {
-        backgroundMusic.play();
-    }
-
-    isFullscreen = gameState.isFullscreen;
 
     bool isDraggingVolumeHandle = false;
 
@@ -1522,11 +1632,7 @@ void settingsWindow(RenderWindow& window, Font& font, Texture& selectedCarTextur
                 isSaveHovered = true;
                 if (event.type == Event::MouseButtonPressed && event.mouseButton.button == Mouse::Left) {
                     clickSound.play();
-                    // Save the current game settings to the file
-                    gameState.isMusicPaused = isMusicPaused;
-                    gameState.volume = volume;
-                    gameState.isFullscreen = isFullscreen;
-                    gameState.save("settings.txt");
+                    saveGame(score, lives);
                 }
             }
 
@@ -1537,15 +1643,7 @@ void settingsWindow(RenderWindow& window, Font& font, Texture& selectedCarTextur
                 if (event.type == Event::MouseButtonPressed && event.mouseButton.button == Mouse::Left) {
                     clickSound.play();
                     // Load the saved settings from the file
-                    gameState.load("settings.txt");
-                    backgroundMusic.setVolume(gameState.volume);
-                    if (gameState.isMusicPaused) {
-                        backgroundMusic.pause();
-                    }
-                    else {
-                        backgroundMusic.play();
-                    }
-                    isFullscreen = gameState.isFullscreen;
+                    loadGame(score, lives);
                 }
             }
 
@@ -1648,7 +1746,7 @@ void settingsWindow(RenderWindow& window, Font& font, Texture& selectedCarTextur
         // Draw "Music On/Off" text
         Text musicText(isMusicPaused ? "Music Off" : "Music On", font, 60);
         musicText.setFillColor(Color::Red);
-        musicText.setPosition(1980 / 2 - musicText.getLocalBounds().width / 2-10, 1080 - 350);
+        musicText.setPosition(1980 / 2 - musicText.getLocalBounds().width / 2 - 10, 1080 - 350);
         window.draw(musicText);
 
         window.display();
@@ -1657,8 +1755,9 @@ void settingsWindow(RenderWindow& window, Font& font, Texture& selectedCarTextur
 
 
 
-
-int showPauseMenu(RenderWindow& window, Font& font, bool& ispaused, Texture selectedCarTexture, bool carSelected, Music& backgroundMusic) {
+// this function is used to pause the game at any moment and show the diff buttons like resume, setting etc( called in main function)
+int showPauseMenu(RenderWindow& window, Font& font, bool& ispaused, Texture selectedCarTexture, bool carSelected, Music& backgroundMusic,int &score, int &lives) {
+    // same as every function to create buttons
     Vector2f buttonSize(400, 80);
     float cornerRadius = 20.0f; // Radius for rounded corners
     Color buttonFillColor = Color(70, 130, 180); // Steel blue for buttons
@@ -1771,12 +1870,12 @@ int showPauseMenu(RenderWindow& window, Font& font, bool& ispaused, Texture sele
                 }
                 if (isSettingsHovered) {
                     clickSound.play();
-                    settingsWindow(window, font, selectedCarTexture, carSelected, ispaused, backgroundMusic);
+                    settingsWindow(window, font, selectedCarTexture, carSelected, ispaused, backgroundMusic,score,lives);
                     continue;
                 }
                 if (isMainMenuHovered) {
                     clickSound.play();
-                    menuSection(window, font, selectedCarTexture, ispaused, carSelected, backgroundMusic);
+                    menuSection(window, font, selectedCarTexture, ispaused, carSelected, backgroundMusic,score,lives);
                     continue;
                 }
                 if (isExitHovered) {
@@ -1814,8 +1913,11 @@ int main() {
     RenderWindow window(VideoMode(trackWidth, trackHeight), "Need For Speed: Ignition");
     bool carSelected = false;
     bool isPaused = false;
-    
-   
+    int score = 0;
+    int lives = 10;
+    // showing the intro video firstly
+    introVideo(window);
+
 
     // Load Font
     Font font;
@@ -1824,13 +1926,23 @@ int main() {
         return -1;
     }
 
+    // Load Textures
+    Texture fuelTexture, scoreTexture, livesTexture;
+    if (!fuelTexture.loadFromFile(fuelPowerUpPath) ||
+        !scoreTexture.loadFromFile(scorePowerUpPath) ||
+        !livesTexture.loadFromFile(livesPowerUpPath)) {
+        cout << "Error loading power-up textures!" << endl;
+    }
+
     Texture selectedCarTexture;
     Music bgMusic;
     if (!bgMusic.openFromFile(backgroundMusicPath)) {
         cout << "Failed to load background music from: " << backgroundMusicPath << endl;
         return -1;
     }
-    menuSection(window, font, selectedCarTexture, isPaused, carSelected, bgMusic);
+
+    // after intro video calling main menu
+    menuSection(window, font, selectedCarTexture, isPaused, carSelected, bgMusic, score, lives);
 
     // Load Background Music
     bgMusic.setLoop(true);
@@ -1847,15 +1959,15 @@ int main() {
     // HUD
     Text scoreText("Score: 0", font, 35);
     scoreText.setPosition(20, 20);
-    scoreText.setFillColor(Color::White);
+    scoreText.setFillColor(Color::Black);
 
     Text livesText("Lives: 3", font, 35);
     livesText.setPosition(20, 80);
-    livesText.setFillColor(Color::White);
+    livesText.setFillColor(Color::Black);
 
     Text timeText("Time: 0.0s", font, 35);
     timeText.setPosition(1640, 76);
-    timeText.setFillColor(Color::White);
+    timeText.setFillColor(Color::Black);
 
     // Array of level texts
     Text levels[10];
@@ -1863,13 +1975,13 @@ int main() {
         levels[i].setFont(font);
         levels[i].setCharacterSize(50);
         levels[i].setPosition(30, 150);
-        levels[i].setFillColor(Color::White);
-        levels[i].setString("Level: " + std::to_string(i + 1));
+        levels[i].setFillColor(Color::Black);
+        levels[i].setString("Level: " + to_string(i + 1));
     }
 
     Sprite carSprite;
     carSprite.setTexture(selectedCarTexture);
-    carSprite.setScale(1.0f, 1.0f);
+    carSprite.setScale(2.0f, 2.0f);
     carSprite.setPosition(trackWidth / 2, trackHeight - 120);
 
     // Fuel Bar Background
@@ -1882,32 +1994,46 @@ int main() {
     fuelBar.setFillColor(Color::Green);
     fuelBar.setPosition(1800, 100);
 
-    // Load the background image
-    Texture backgroundTexture;
-    if (!backgroundTexture.loadFromFile(backgroundTrack)) {
-        cout << "Image not found!" << endl;
-        return -1;
-    }
-
-    Sprite backgroundTrack1Sprite;
-    backgroundTrack1Sprite.setTexture(backgroundTexture);
-    backgroundTrack1Sprite.setScale(
-        float(trackWidth) / backgroundTexture.getSize().x,
-        float(trackHeight) / backgroundTexture.getSize().y
+    // Use the selected map texture after selection
+    Sprite backgroundTrackSprite;
+    backgroundTrackSprite.setTexture(selectedMapTexture);
+    backgroundTrackSprite.setScale(
+        float(trackWidth) / selectedMapTexture.getSize().x,
+        float(trackHeight) / selectedMapTexture.getSize().y
     );
 
-    // Obstacles
-    vector<RectangleShape> obstacles;
-    generateObstacles(obstacles, 25, 40, Vector2f(trackWidth, trackHeight));
+    // image of obstacles
+    vector<Sprite> obstacles;
+    Texture obstacleTexture;
+    if (!obstacleTexture.loadFromFile(obstacle1Path)) {
+        cout << "Image not Found!";
+        window.close();
+    }
+    // to generate the obstacles
+    generateObstacles(obstacles, 15, Vector2f(trackWidth, trackHeight), obstacleTexture);
 
     // Power-Ups
-    vector<CircleShape> powerUps;
-    int powerUpSize = 20; // Size of power-up
+    vector<Sprite> powerUps;
+    int powerUpSize = 5; // Size of power-up
     Vector2f trackBounds(trackWidth, trackHeight);
 
+    // Mini-map
+    RenderTexture miniMapTexture;
+    miniMapTexture.create(300, 300);
+    Sprite miniMapSprite(miniMapTexture.getTexture());
+    miniMapSprite.setPosition(1600, 700);
+
+    CircleShape mapCar(3);
+    mapCar.setFillColor(Color::Blue);
+
+    CircleShape mapObstacle(3);
+    mapObstacle.setFillColor(Color::Red);
+
+    CircleShape mapPowerUp(3);
+    mapPowerUp.setFillColor(Color::Green);
+
     // Game variables
-    int score = 0;
-    int lives = 10;
+ 
     float carSpeed = 2.2f;
     int speedBoostDuration = 0;
     Clock clock;
@@ -1918,16 +2044,17 @@ int main() {
     float fuelConsumptionRate = 0.05f;
     Clock gameClock;
     Clock updateClock;
-  
 
     // Load previous playtime
     float previousPlayTime = 0.0f;
+    float totalTime = 0.0f;
+
     // Game loop
     while (window.isOpen()) {
         if (Keyboard::isKeyPressed(Keyboard::Escape)) {
             isPaused = true;
             bgMusic.pause();
-            isPaused = showPauseMenu(window, font, isPaused, selectedCarTexture, carSelected, bgMusic);
+            isPaused = showPauseMenu(window, font, isPaused, selectedCarTexture, carSelected, bgMusic,score,lives);
             continue;
         }
 
@@ -1943,7 +2070,8 @@ int main() {
             float elapsedTime = gameClock.getElapsedTime().asSeconds();
             // Update time text
             ostringstream oss;
-            oss << "Time: " << fixed << setprecision(1) << elapsedTime + previousPlayTime << "s";
+            totalTime = elapsedTime + previousPlayTime;
+            oss << "Time: " << fixed << setprecision(1) << totalTime << "s";
             timeText.setString(oss.str());
 
             // Moving the car
@@ -1966,11 +2094,12 @@ int main() {
                 if (currentFuel <= 0) {
                     currentFuel = 0;
                     bgMusic.stop();
-                    tryAgain(window, font, isPaused, carSelected, lives, score, currentFuel, obstacles, carSprite, trackWidth, trackHeight, bgMusic,powerUps, elapsedTime + previousPlayTime);
+                    tryAgain(window, font, isPaused, carSelected, lives, score, currentFuel, carSprite, trackWidth, trackHeight, bgMusic, powerUps, totalTime, selectedCarTexture, previousPlayTime, gameClock);
                     bgMusic.play();
                 }
             }
             checkForCheckpoint(score);
+
             // Calculate fuel bar height and adjust position
             float fuelBarHeight = (currentFuel / maxFuel) * 200;
             fuelBar.setSize(Vector2f(30, fuelBarHeight));
@@ -1981,7 +2110,7 @@ int main() {
                 for (auto& obstacle : obstacles) {
                     obstacle.move(0, 0.5f * carSpeed);
                     if (obstacle.getPosition().y > trackHeight) {
-                        float randomX = 300 + static_cast<float>(rand() % (1600 - 300 - static_cast<int>(obstacle.getSize().x))); // Corrected type handling
+                        float randomX = 300 + static_cast<float>(rand() % (1600 - 300 - static_cast<int>(obstacle.getGlobalBounds().width))); // Corrected type handling
                         obstacle.setPosition(randomX, 0);
                         score++;
                     }
@@ -1994,7 +2123,7 @@ int main() {
                         if (lives <= 0) {
                             bgMusic.stop();
                             savePlayTime(elapsedTime + previousPlayTime);
-                            tryAgain(window, font, isPaused, carSelected, lives, score, currentFuel, obstacles, carSprite, trackWidth, trackHeight, bgMusic,powerUps, elapsedTime + previousPlayTime);
+                            tryAgain(window, font, isPaused, carSelected, lives, score, currentFuel, carSprite, trackWidth, trackHeight, bgMusic, powerUps, totalTime, selectedCarTexture, previousPlayTime, gameClock);
                             bgMusic.play();
                         }
                     }
@@ -2002,11 +2131,31 @@ int main() {
             }
 
             // Manage power-ups (draw, generate, and handle collision)
-            managePowerUps(window, carSprite, powerUps, currentFuel, score, speedBoostDuration, lives, powerUpSize, trackBounds);
+            managePowerUps(window, carSprite, powerUps, fuelTexture, scoreTexture, livesTexture, currentFuel, score, speedBoostDuration, lives, trackBounds);
 
             // Update HUD
             scoreText.setString("Score: " + to_string(score));
             livesText.setString("Lives: " + to_string(lives));
+
+            miniMapTexture.clear(Color(50, 50, 50, 150));
+
+            // Draw obstacles on the mini-map
+            for (const auto& obstacle : obstacles) {
+                mapObstacle.setPosition(obstacle.getPosition().x / (trackWidth / 300.0f), obstacle.getPosition().y / (trackHeight / 300.0f));
+                miniMapTexture.draw(mapObstacle);
+            }
+
+            // Draw power-ups on the mini-map
+            for (const auto& powerUp : powerUps) {
+                mapPowerUp.setPosition(powerUp.getPosition().x / (trackWidth / 300.0f), powerUp.getPosition().y / (trackHeight / 300.0f));
+                miniMapTexture.draw(mapPowerUp);
+            }
+
+            // Draw the car on the mini-map
+            mapCar.setPosition(carSprite.getPosition().x / (trackWidth / 300.0f), carSprite.getPosition().y / (trackHeight / 300.0f));
+            miniMapTexture.draw(mapCar);
+
+            miniMapTexture.display();
 
             // Render everything
             int levelIndex = score / 100;
@@ -2018,14 +2167,10 @@ int main() {
             carSpeed = (score >= 1000) ? 12.0f : 2.0f + (score / 100);
 
             window.clear();
-            window.draw(backgroundTrack1Sprite);
+            window.draw(backgroundTrackSprite);
             window.draw(carSprite);
 
-            for (const auto& obstacle : obstacles) {
-                window.draw(obstacle);
-            }
-
-            managePowerUps(window, carSprite, powerUps, currentFuel, score, speedBoostDuration, lives, powerUpSize, trackBounds);
+            managePowerUps(window, carSprite, powerUps, fuelTexture, scoreTexture, livesTexture, currentFuel, score, speedBoostDuration, lives, trackBounds);
             window.draw(fuelBarBackground);
             window.draw(fuelBar);
             window.draw(scoreText);
@@ -2036,17 +2181,12 @@ int main() {
                 window.draw(levels[levelIndex]);
             }
 
+            for (const auto& obstacle : obstacles) {
+                window.draw(obstacle);
+            }
+            window.draw(miniMapSprite);
             window.display();
         }
     }
     return 0;
 }
-
-
-
-
-
-
-
-
-
