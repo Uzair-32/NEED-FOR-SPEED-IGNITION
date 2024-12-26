@@ -52,9 +52,9 @@ Texture selectedMapTexture;
 // called in start of the main function to show the video first
 void introVideo(RenderWindow& window) { 
     const string frames = "assets/intro/ezgif-frame-";// beacuse of many numbers of images in the file i write this as bcz every image start with this name first the only difference is of the numbers at the end
-    const int startFrame = 1;  // the first frame name is 1 and last is 98 there are basically 98 images in intro folder
+    const int startFrame = 1;  // the first frame name is 1 and last is 67 there are basically 98 images in intro folder
     const int endFrame = 67;
-    const int fps = 25;    // video will be played at 30fps
+    const int fps = 25;    // video will be played at 25fps
 
     vector<Texture> framesTexture;
     Sprite framesSprite;
