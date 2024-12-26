@@ -2,6 +2,11 @@
 
 "Need for Speed: Ignition" is a simple car racing game developed as a first-semester C++ project. This game introduces players to the thrilling experience, where they control a car to avoid obstacles and make a hightscore. The project was designed to showcase fundamental programming skills, game logic, and creativity, all while providing an engaging and fun gaming experience.
 
+
+## Game Location 
+To Start the Game, Open the GitHub Link go to **Racing Game > Racing Game.exe**
+
+
 ## Group Members:
 - Muhammad Uzair (Team Lead, System Flow)
 - Ayesha Mobeen (Sound Mechanism, HUD)
@@ -146,3 +151,5 @@ The following section contains the documentation about the purpose and functiona
 ### main() function:
 
 The main function initializes the game window, loads assets, and starts the game loop. It handles player input, updates the game state, and renders the game.
+
+
