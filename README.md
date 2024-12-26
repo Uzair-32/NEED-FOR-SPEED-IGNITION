@@ -70,79 +70,79 @@ The following section contains the documentation about the purpose and functiona
 ### Functions
 
 - #### void checkForCheckpoint(int& score)
-    
+    ```
     Checks if the player has passed a checkpoint based on the score and updates the lastCheckpointScore and passedCheckpoint variables.
-    
+    ```
 - #### void countDown(RenderWindow& window, Font& font)
-    
+    ```
     Displays a countdown before the game starts. It plays a countdown sound and updates the countdown text on the screen.
-    
+    ```
 - #### void resetToCheckpoint(int& lives, int& score, float& currentFuel, vector<RectangleShape>& obstacles, Sprite& carSprite, const int trackWidth, const int trackHeight, bool& carSelected, vector<CircleShape>& powerUps)
-    
+    ```
     Resets the game state to the last checkpoint. It updates the score, lives, fuel, car position, and repositions obstacles and power-ups.
-    
+    ```
     
 - #### void drawRoundedButton(RenderWindow& window, Vector2f position, Vector2f size, const string& text, Font& font, bool isHovered, Color fillColor, Color hoverColor)
-    
+    ```
     Draws a rounded button with the specified text, position, size, and colors. It also handles hover effects.
-    
+    ```
 - #### void carSelection(RenderWindow& window, Font font, bool& carSelected, Texture& selectedCarTexture)
-    
+    ```
     Displays the car selection menu where the player can choose a car. It handles car selection and updates the selectedCarTexture.
-    
+    ```
 
 - #### void menuSection(RenderWindow& window, Font& font, Texture& selectedCarTexture, bool ispaused, bool& carSelected, Music& backgroundMusic)
-    
+    ```
     Displays the main menu with options to start the game, select a car, change settings, and quit the game.
-    
+    ```
 
 - #### void generateObstacles(vector<RectangleShape>& obstacles, int numObstacles, int obstacleSize, Vector2f trackBounds)
-    
+    ```
     Generates obstacles at random positions within the track bounds.
-    
+    ```
 
 - #### void addProfile(RenderWindow& window, Font& font, Sound& clickSound)
-    
+    ```
     Displays a UI to add a new player profile. It handles user input for the profile name and saves it to a file.
-    
+    ```
 
 - #### void savePlayTime(float playTime)
-    
+    ```
     Saves the playtime to a file.
-    
+    ```
 
 - #### float loadPlayTime()
-    
+    ```
     Loads the playtime from a file.
-    
+    ```
 - #### void managePowerUps(RenderWindow& window, Sprite& carSprite, vector<CircleShape>& powerUps, float& currentFuel, int& score, int& speedBoostDuration, int& lives, int powerUpSize, Vector2f trackBounds)
-    
+    ```
     Manages power-ups by generating them based on score milestones, drawing them, and handling collisions with the car.
-    
+    ```
 
 - #### void resetGame(int& lives, int& score, float& currentFuel, vector<RectangleShape>& obstacles, Sprite& carSprite, const int trackWidth, const int trackHeight, bool& carSelected, vector<CircleShape>& powerUps, float& totalTime)
-    
+    ```
     Resets the game state, including lives, score, fuel, car position, obstacles, power-ups, and total time.
-    
+    ```
 
 - #### void tryAgain(RenderWindow& window, Font& font, bool& isPaused, bool& carSelected, int& lives, int& score, float& currentFuel, vector<RectangleShape>& obstacles, Sprite& carSprite, const int trackWidth, const int trackHeight, Music& backgroundMusic, vector<CircleShape>& powerUps, float totalTime)
-    
+    ```
     Displays the "Game Over" screen with options to try again, return to the main menu, or exit the game. It also shows the final score and total time.
-    
+    ```
 
 - #### void showChooseCarMessage(RenderWindow& window, Font& font, bool& carSelected)
-    
+    ```
     Displays a message prompting the player to select a car before starting the game.
-    
+    ```
 - #### void settingsWindow(RenderWindow& window, Font& font, Texture& selectedCarTexture, bool& carSelected, bool ispaused, Music& backgroundMusic)
-    
+    ```
     Displays the settings window where the player can adjust music settings, volume, fullscreen mode, and add profiles.
-    
+    ```
 - #### int showPauseMenu(RenderWindow& window, Font& font, bool& ispaused, Texture selectedCarTexture, bool carSelected, Music& backgroundMusic)
-    
+    ```
     Displays the pause menu with options to resume the game, change settings, return to the main menu, or exit the game.
-    
+    ```
 
 ### main() function:
 
-The main function initializes the game window, loads assets, and starts the game loop. It handles player input, updates the game state, and renders the game.
+The main function initializes the game window, loads assets, and starts the game loop. It handles player input, updates the game state, and renders the game.
