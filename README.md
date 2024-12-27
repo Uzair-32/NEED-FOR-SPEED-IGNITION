@@ -29,7 +29,7 @@ To Start the Game, Open the GitHub Link go to **Racing Game > Racing Game.exe**
     It is collection of different C++ libraries that are used to create a simple 2-Dimensional games. 
     
 ## Demo: 
-[![Demo video](https://img.youtube.com/vi/video-id/0.jpg)](https://youtu.be/mpHPDhYS4Gw)
+[![Demo video](https://img.youtube.com/vi/video-id/0.jpg)](https://youtu.be/9IdYVdEdj88)
 
 ## How it Works: 
 1. The game initializes with a menu section where user can either start, select a car or change the settings.
